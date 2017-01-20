@@ -5,7 +5,7 @@ open System.IO
 open System.Collections.Generic
 open FSharp.Collections.ParallelSeq
 
-let linesLimit = 10000 // for quick testing
+let linesLimit = 20000 // for quick testing
 let recommendSongsLimit = 25
 
 let splitLine (line : string) =
@@ -26,9 +26,9 @@ let calcAverages = Map.toSeq >> Seq.map snd >> Seq.averageBy float
 let readData filename =
     let users, songs =
         File.ReadLines filename
-        |> Seq.truncate linesLimit
-        |> PSeq.map splitLine
-        |> PSeq.fold addData (Map.empty, Set.empty)
+        // |> Seq.truncate linesLimit
+        |> Seq.map splitLine
+        |> Seq.fold addData (Map.empty, Set.empty)
     users |> Map.map (fun _ counts -> (counts, calcAverages counts)), songs
 
 // users: Map<string (* user *), Map<string (* song *), int (* count *) * float (* avgCount *)>>
@@ -38,17 +38,17 @@ printfn "users: %A songs: %A" users.Count songs.Count
 
 let similarities =
     let similarity (counts1, avg1) (counts2, avg2) =
-        let songs = Map.toSeq >> PSeq.map fst >> Set.ofSeq
+        let songs = Map.toSeq >> Seq.map fst >> Set.ofSeq
         let songCount (counts : Map<_,_>) song = counts.Item song
 
         let square x = x * x
         let norm counts avg song = square (float (songCount counts1 song) - avg)
 
-        let commonSongs = Set.intersect (songs counts1) (songs counts2)
-        let songNorm counts avg = Set.fold (fun acc song -> acc + (norm counts avg song)) 0. commonSongs
+        let commonSongs = Set.intersect (songs counts1) (songs counts2) |> Set.toSeq
+        let songNorm counts avg = Seq.fold (fun acc song -> acc + (norm counts avg song)) 0. commonSongs
         let songScalar x = (float (songCount counts1 x) - avg1) * (float (songCount counts2 x) - avg2)
 
-        let scalar = Set.fold (fun acc x -> acc + songScalar x) 0. commonSongs
+        let scalar = Seq.fold (fun acc x -> acc + songScalar x) 0. commonSongs
         let user1Norm = songNorm counts1 avg1
         let user2Norm = songNorm counts2 avg2
 
@@ -62,7 +62,7 @@ let similarities =
         | _ -> []
 
     let calcSimilarity ((u1, counts1), (u2, counts2)) = (u1, u2), similarity counts1 counts2
-    Map.toList >> pairs >> List.map calcSimilarity >> Map.ofList
+    Map.toList >> pairs >> Seq.ofList >> PSeq.map calcSimilarity >> Map.ofSeq
 
 let userSimilarities = similarities users
 
@@ -93,11 +93,11 @@ let prediction user song =
 
 let recommendations (user: string, songsCounts : Map<string, int>) =
     songs
-    |> PSeq.filter (not << songsCounts.ContainsKey)
+    |> Seq.filter (not << songsCounts.ContainsKey)
     |> PSeq.map (fun song -> song, prediction user song)
     |> Seq.sortByDescending snd
     |> Seq.truncate recommendSongsLimit
-    |> PSeq.toList
+    |> Seq.toList
 
 let user = "b80344d063b5ccb3212f76538f3d9e43d87dca9e"
 let userCounts = users.Item user |> fst
