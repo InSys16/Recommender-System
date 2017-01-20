@@ -66,7 +66,7 @@ let similarities =
 
 let userSimilarities = similarities users
 
-let rec similarity user1 user2 =
+let similarity user1 user2 =
     match userSimilarities.TryFind (user1, user2) with
     | Some similarity -> similarity
     | None -> userSimilarities.Item (user2, user1)
@@ -88,7 +88,7 @@ let prediction user song =
         |> Seq.sortByDescending snd
         |> Seq.truncate 25
     
-    let songPrediction, similaritySum = Seq.fold prediction (0.,0.) similarUsers
+    let songPrediction, similaritySum = Seq.fold prediction (0., 0.) similarUsers
     if similaritySum <> 0. then songPrediction / similaritySum else 0.
 
 let recommendations (user: string, songsCounts : Map<string, int>) =
@@ -102,5 +102,4 @@ let recommendations (user: string, songsCounts : Map<string, int>) =
 let user = "b80344d063b5ccb3212f76538f3d9e43d87dca9e"
 let userCounts = users.Item user |> fst
 
-recommendations (user, userCounts)
-|> List.iter (printfn "%A")
+recommendations (user, userCounts) |> List.iter (printfn "%A")
