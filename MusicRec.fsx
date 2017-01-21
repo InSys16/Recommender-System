@@ -5,9 +5,10 @@ open System.IO
 open System.Collections.Generic
 open FSharp.Collections.ParallelSeq
 
-let linesLimit = 20000 // for quick testing
+let linesLimit = 100000 // for quick testing
 let recommendSongsLimit = 25
 
+let user = "b80344d063b5ccb3212f76538f3d9e43d87dca9e"
 let splitLine (line : string) =
     let strings = line.Split()
     let countLog = Math.Log(float strings.[2], float 2) |> Math.Round |> int |> (+) 1
@@ -33,6 +34,7 @@ let readData filename =
 
 // users: Map<string (* user *), Map<string (* song *), int (* count *) * float (* avgCount *)>>
 // songs: Set<string>
+
 let users, songs = readData "train_triplets.txt"
 printfn "users: %A songs: %A" users.Count songs.Count
 
@@ -57,14 +59,15 @@ let similarities =
         else
             0.
 
-    let rec pairs = function
-        | head :: tail as l -> List.map (fun x -> head, x) l @ pairs tail
-        | _ -> []
+    // let rec pairs = function
+    //     | head :: tail as l -> List.map (fun x -> head, x) l @ pairs tail
+    //     | _ -> []
 
+    let userCounts = users.Item user
     let calcSimilarity ((u1, counts1), (u2, counts2)) = (u1, u2), similarity counts1 counts2
-    Map.toList >> pairs >> Seq.ofList >> PSeq.map calcSimilarity >> Map.ofSeq
+    (Map.toList >> List.map (fun x -> (user, userCounts), x) >> Seq.ofList >> PSeq.map calcSimilarity >> Map.ofSeq) users
 
-let userSimilarities = similarities users
+let userSimilarities = similarities
 
 let similarity user1 user2 =
     match userSimilarities.TryFind (user1, user2) with
@@ -98,8 +101,6 @@ let recommendations (user: string, songsCounts : Map<string, int>) =
     |> Seq.sortByDescending snd
     |> Seq.truncate recommendSongsLimit
     |> Seq.toList
-
-let user = "b80344d063b5ccb3212f76538f3d9e43d87dca9e"
 let userCounts = users.Item user |> fst
 
 recommendations (user, userCounts) |> List.iter (printfn "%A")
